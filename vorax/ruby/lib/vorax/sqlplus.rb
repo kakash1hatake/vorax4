@@ -42,6 +42,7 @@ module Vorax
       @process.io.inherit!
       @io_read, @io_write = VoraxIO.pipe
       @process.io.stdout = @io_write
+      @process.io.stderr = @io_write
       @process.start
       @process.io.stdin.sync = true
       @current_funnel = nil
