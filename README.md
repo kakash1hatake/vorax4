@@ -1,6 +1,4 @@
 
-## !! THIS PROJECT IS NO LONGER MAINTAINED !!
-
 # Vorax, an Oracle IDE for Geeks
 
 Vorax is a simple yet powerful IDE for Oracle databases, built 
@@ -19,8 +17,8 @@ Features:
 
 ## Installation
 
-* ensure you have ruby1.9.3 or ruby2.0
-* vim 7.3 compiled with ruby support
+* ensure you have at least ruby1.9.3 or ruby2.0 (also tested with 2.5.0)
+* vim (at least 7.3 or newer) compiled with ruby support
 * install vorax.gem to get the dependent gems
 
 ```
