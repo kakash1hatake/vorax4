@@ -1,5 +1,7 @@
 # encoding: UTF-8
 
+require 'logger'
+
 module Vorax
 
   # Provides integration with Oracle SqlPlus CLI tool.
@@ -19,6 +21,17 @@ module Vorax
       @tail = ""
       @busy = false
       @start_marker, @end_marker, @cancel_marker = [2.chr, 3.chr, 4.chr]
+
+      # pass log messages to file. closes issues #89 and #86 (TypeError: no implicit conversion of Object into String)
+      logger = Logger.new('/tmp/vorax.sqlplus.log')
+      if ENV['VORAX_DEBUG']
+        log_level = Logger::DEBUG
+      else
+        log_level = Logger::ERROR
+      end
+      logger.level = log_level
+      ChildProcess.logger = logger
+
       @process = ChildProcess.build(@bin_file, "/nolog")
       # On Unix we may abort the currently executing query by sending a
       # INT signal to the Sqlplus process, but we need access to the 
