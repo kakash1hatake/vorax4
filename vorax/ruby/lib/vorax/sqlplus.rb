@@ -1,7 +1,5 @@
 # encoding: UTF-8
 
-require 'logger'
-
 module Vorax
 
   # Provides integration with Oracle SqlPlus CLI tool.
@@ -22,15 +20,11 @@ module Vorax
       @busy = false
       @start_marker, @end_marker, @cancel_marker = [2.chr, 3.chr, 4.chr]
 
-      # pass log messages to file. closes issues #89 and #86 (TypeError: no implicit conversion of Object into String)
-      logger = Logger.new('/tmp/vorax.sqlplus.log')
-      if ENV['VORAX_DEBUG']
-        log_level = Logger::DEBUG
-      else
-        log_level = Logger::ERROR
-      end
-      logger.level = log_level
-      ChildProcess.logger = logger
+      # pass log messages to file.
+      @logger = VoraxLogger.new('/tmp/vorax.sqlplus.log')
+
+      # closes issues #89 and #86 (TypeError: no implicit conversion of Object into String)
+      ChildProcess.logger = @logger
 
       @process = ChildProcess.build(@bin_file, "/nolog")
       # On Unix we may abort the currently executing query by sending a
@@ -42,7 +36,8 @@ module Vorax
       @process.io.inherit!
       @io_read, @io_write = VoraxIO.pipe
       @process.io.stdout = @io_write
-      @process.io.stderr = @io_write
+      # don't capture stderr to pipe, then vim shows the error to user
+      #@process.io.stderr = @io_write
       @process.start
       @process.io.stdin.sync = true
       @current_funnel = nil
@@ -57,7 +52,7 @@ module Vorax
       # may happen. This is also a workaround to mark the end of
       # output when the "echo" setting of sqlplus is "on". See the
       # implementation of pack().
-      send_text("\n#set blockterm \"#@end_marker\"\n")
+      send_text("\n#set blockterm \"#{@end_marker}\"\n")
     end
 
     # Set the default convertor for the output returned by sqlplus.
@@ -65,7 +60,7 @@ module Vorax
     # @param convertor_name [Symbol] the default funnel name. The
     #   valid values are: :vertical, :pagezip and :tablezip
     def default_convertor=(convertor_name)
-      Vorax.debug("default_convertor=#{convertor_name.inspect}")
+      @logger.debug("default_convertor=#{convertor_name.inspect}")
       @default_convertor_name = convertor_name
     end
 
@@ -101,7 +96,7 @@ module Vorax
     #                   not provided then the command is sent directly
     #                   to the input IO of the sqlplus process.
     def exec(command, params = {})
-      Vorax.debug("exec: command=[\n#{command}\n]\nparams=#{params.inspect}")
+      @logger.debug("exec: command=[\n#{command}\n]\nparams=#{params.inspect}")
       raise AnotherExecRunning if busy?
       @tail = ""
       opts = {
@@ -132,7 +127,7 @@ module Vorax
     #
     # @param text [String] the text to be sent to sqlplus
     def send_text(text)
-      Vorax.debug("sent to sqlplus: #{text}")
+      @logger.debug("sent to sqlplus: #{text}")
       @process.io.stdin.print(text)
     end
 
@@ -172,7 +167,7 @@ module Vorax
       if raw_output
         @tail = ""
         raw_output.gsub!(/\r/, '')
-        Vorax.debug("read_output: #{raw_output.inspect}")
+        @logger.debug("read_output: #{raw_output.inspect}")
         scanner = StringScanner.new(raw_output)
         while not scanner.eos?
           if @look_for == @start_marker
@@ -205,15 +200,15 @@ module Vorax
               #
               #      EOF
               #
-              Vorax.debug("read_output: end_marker detected")
+              @logger.debug("read_output: end_marker detected")
               @tail = scanner.rest
-              Vorax.debug("read_output: @tail=#{@tail.inspect}")
+              @logger.debug("read_output: @tail=#{@tail.inspect}")
               if @tail =~ /^#{EOF}/ || @tail =~ /^\n[^\n]*?#{EOF}/ || @tail =~ /^\n<br>\n[^\n]*?#{EOF}/
-                Vorax.debug("read_output: end_marker confirmed")
+                @logger.debug("read_output: end_marker confirmed")
                 @busy = false
                 @tail = ""
               else
-                Vorax.debug("read_output: end_marker NOT confirmed")
+                @logger.debug("read_output: end_marker NOT confirmed")
               end
               scanner.terminate
             end
@@ -305,7 +300,7 @@ module Vorax
       if pack_file
         File.open(pack_file, 'wb') do |f|
           f.puts opts[:prep]
-          f.puts "#pro #@start_marker"
+          f.puts "#pro #{@start_marker}"
           f.puts command.strip
           # we assume that the @end_marker is also
           # set as a block terminator. If "set echo on"
@@ -313,16 +308,16 @@ module Vorax
           # block terminator command will be echoed. Otherwise,
           # the next prompt statement will do the job.
           f.puts "#{@end_marker}"
-          f.puts "#pro #@end_marker#{EOF}"
+          f.puts "#pro #{@end_marker}#{EOF}"
           
           # once again with termout enforced
           f.puts("set termout on")
           f.puts "#{@end_marker}"
-          f.puts "#pro #@end_marker#{EOF}"
+          f.puts "#pro #{@end_marker}#{EOF}"
           f.puts opts[:post]
         end
       end
-      Vorax.debug("pack_file #{pack_file}:\n#{File.open(pack_file, 'rb') { |f| f.read }}")
+      @logger.debug("pack_file #{pack_file}:\n#{File.open(pack_file, 'rb') { |f| f.read }}")
       pack_file
     end
 

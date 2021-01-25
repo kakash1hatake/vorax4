@@ -23,7 +23,7 @@ module Vorax
   # @param message [String] the message to be logged.
   def self.debug(message)
     if @logger
-      @logger.add(Logger::DEBUG, nil, 'rby') { message }
+      @logger.add(Logger::DEBUG, message, 'vorax')
     end
   end
 
@@ -44,6 +44,7 @@ end
 
 require 'vorax/version.rb'
 require 'vorax/vorax_io.rb'
+require 'vorax/vorax_logger.rb'
 require 'vorax/sqlplus.rb'
 require 'vorax/base_funnel.rb'
 require 'vorax/utils.rb'
